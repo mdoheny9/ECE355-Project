@@ -56,6 +56,8 @@ void myEXTI_Init(void);
 // (say, timerTriggered = 0 or 1) to indicate
 // whether TIM2 has started counting or not.
 
+global bool firstEdge = true;
+
 
 /*** Call this function to boost the STM32F0xx clock to 48 MHz ***/
 
@@ -213,37 +215,44 @@ void TIM2_IRQHandler()
 /* This handler is declared in system/src/cmsis/vectors_stm32f051x8.c */
 void EXTI2_3_IRQHandler()
 {
-	// Declare/initialize your local variables here...
+
+	unsigned int period = 1;
+	unsigned int frequency = 0;
 
 	/* Check if EXTI2 interrupt pending flag is indeed set */
 	if ((EXTI->PR & EXTI_PR_PR2) != 0)
 	{
 		//
 		// 1. If this is the first edge:
-		//	- Clear count register (TIM2->CNT).
-		TIM2->CNT = 0x00
-		//	- Start timer (TIM2->CR1).
-		TIM2->CR1
-		//    Else (this is the second edge):
-		//	- Stop timer (TIM2->CR1).
-		TIM2->CR1
-		//	- Read out count register (TIM2->CNT).
-		TIM2->CNT
-		//	- Calculate signal period and frequency.
-		unsigned int period = 23715609;
-		unsigned int frequency = 1/period;
-		//	- Print calculated values to the console.
-		trace_printf("period:", period, "\nfrequency:", frequency, "\n")
-		//	  NOTE: Function trace_printf does not work
-		//	  with floating-point numbers: you must use
-		//	  "unsigned int" type to print your signal
-		//	  period and frequency.
-		//
+		if (firstEdge) {
+			//	- Clear count register (TIM2->CNT).
+			TIM2->CNT = 0x00;
+			//	- Start timer (TIM2->CR1).
+			TIM2->CR1 |= TIM_CR1_CEN;
+		}
+		else {
+			//    Else (this is the second edge):
+			//	- Stop timer (TIM2->CR1).
+			TIM2->CR1 &= ~(TIM_CR1_CEN);
+			//	- Read out count register (TIM2->CNT).
+			period = TIM2->CNT;
+			//	- Calculate signal period and frequency.
+
+			frequency = 1/period;
+			
+			//	- Print calculated values to the console.
+			trace_printf("period:", period, "\nfrequency:", frequency, "\n");
+			//	  NOTE: Function trace_printf does not work
+			//	  with floating-point numbers: you must use
+			//	  "unsigned int" type to print your signal
+			//	  period and frequency.
+		}
+
 		// 2. Clear EXTI2 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
 		// by writing 1 to it.
-		//
-		EXTI->PR
+
+		EXTI->PR = 0x01;
 	}
 }
 
