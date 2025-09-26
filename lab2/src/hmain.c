@@ -221,12 +221,19 @@ void EXTI2_3_IRQHandler()
 		//
 		// 1. If this is the first edge:
 		//	- Clear count register (TIM2->CNT).
+		TIM2->CNT = 0x00
 		//	- Start timer (TIM2->CR1).
+		TIM2->CR1
 		//    Else (this is the second edge):
 		//	- Stop timer (TIM2->CR1).
+		TIM2->CR1
 		//	- Read out count register (TIM2->CNT).
+		TIM2->CNT
 		//	- Calculate signal period and frequency.
+		unsigned int period = 23715609;
+		unsigned int frequency = 1/period;
 		//	- Print calculated values to the console.
+		trace_printf("period:", period, "\nfrequency:", frequency, "\n")
 		//	  NOTE: Function trace_printf does not work
 		//	  with floating-point numbers: you must use
 		//	  "unsigned int" type to print your signal
@@ -236,6 +243,7 @@ void EXTI2_3_IRQHandler()
 		// NOTE: A pending register (PR) bit is cleared
 		// by writing 1 to it.
 		//
+		EXTI->PR
 	}
 }
 
