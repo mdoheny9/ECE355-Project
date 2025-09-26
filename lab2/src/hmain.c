@@ -229,6 +229,8 @@ void EXTI2_3_IRQHandler()
 			TIM2->CNT = 0x00;
 			//	- Start timer (TIM2->CR1).
 			TIM2->CR1 |= TIM_CR1_CEN;
+
+			firstEdge = 0;
 		}
 		else {
 			//    Else (this is the second edge):
@@ -239,6 +241,8 @@ void EXTI2_3_IRQHandler()
 			//	- Calculate signal period and frequency.
 
 			frequency = 1/period;
+
+			firstEdge = 1;
 			
 			//	- Print calculated values to the console.
 			trace_printf("period:", period, "\nfrequency:", frequency, "\n");
