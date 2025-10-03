@@ -181,7 +181,7 @@ void myEXTI_Init()
 	/* EXTI2 line int
 	 * errupts: set rising-edge trigger */
 	// Relevant register: EXTI->RTSR
-	EXTI->RTSR = EXTI_RTSR_TR12;
+	EXTI->RTSR = EXTI_RTSR_TR2;
 
 	/* Unmask interrupts from EXTI2 line */
 	// Relevant register: EXTI->IMR
