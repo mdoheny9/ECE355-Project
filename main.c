@@ -181,19 +181,19 @@ void myEXTI_Init()
 	/* EXTI2 line int
 	 * errupts: set rising-edge trigger */
 	// Relevant register: EXTI->RTSR
-	EXTI->RTSR = EXTI_RTSR_TR1;
+	EXTI->RTSR = EXTI_RTSR_TR12;
 
 	/* Unmask interrupts from EXTI2 line */
 	// Relevant register: EXTI->IMR
-	EXTI->IMR = EXTI_IMR_MR1;
+	EXTI->IMR = EXTI_IMR_MR2;
 
 	/* Assign EXTI2 interrupt priority = 0 in NVIC */
 	// Relevant register: NVIC->IP[2], or use NVIC_SetPriority
-	NVIC_SetPriority(TIM2_IRQn, 0); // TIMx_IRQn ?????
+	NVIC_SetPriority(EXTI2_3_IRQn, 0); // TIMx_IRQn ?????
 
 	/* Enable EXTI2 interrupts in NVIC */
 	// Relevant register: NVIC->ISER[0], or use NVIC_EnableIRQ
-	NVIC_EnableIRQ(TIM2_IRQn);
+	NVIC_EnableIRQ(EXTI2_3_IRQn);
 }
 
 
