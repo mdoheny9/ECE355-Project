@@ -99,6 +99,7 @@ void SystemClock48MHz( void )
 
 int
 main(int argc, char* argv[])
+
 {
 
 	SystemClock48MHz();
@@ -189,7 +190,7 @@ void myEXTI_Init()
 
 	/* Assign EXTI2 interrupt priority = 0 in NVIC */
 	// Relevant register: NVIC->IP[2], or use NVIC_SetPriority
-	NVIC_SetPriority(EXTI2_3_IRQn, 0); // TIMx_IRQn ?????
+	NVIC_SetPriority(EXTI2_3_IRQn, 0);
 
 	/* Enable EXTI2 interrupts in NVIC */
 	// Relevant register: NVIC->ISER[0], or use NVIC_EnableIRQ
@@ -220,8 +221,8 @@ void TIM2_IRQHandler()
 void EXTI2_3_IRQHandler()
 {
 
-	unsigned int period = 1;
-	unsigned int frequency = 0;
+	float period = 1;
+	float frequency = 0;
 
 	/* Check if EXTI2 interrupt pending flag is indeed set */
 	if ((EXTI->PR & EXTI_PR_PR2) != 0)
@@ -242,25 +243,27 @@ void EXTI2_3_IRQHandler()
 			TIM2->CR1 &= ~(TIM_CR1_CEN);
 			//	- Read out count register (TIM2->CNT).
 			period = TIM2->CNT;
+			period /= 48172691.6; // Average of 10 runs on 1 second
+
 			//	- Calculate signal period and frequency.
-
-			frequency = 1/period;
-
-			firstEdge = 1;
+			frequency = 1.0/period;
 
 			//	- Print calculated values to the console.
-			trace_printf("period:", period, "\nfrequency:", frequency, "\n");
+			trace_printf("period: %.10fs\n", period);
+			trace_printf("frequency: %fHz\n", frequency);
 			//	  NOTE: Function trace_printf does not work
 			//	  with floating-point numbers: you must use
 			//	  "unsigned int" type to print your signal
 			//	  period and frequency.
+
+			firstEdge = 1;
 		}
 
 		// 2. Clear EXTI2 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
 		// by writing 1 to it.
 
-		EXTI->PR = 0x01;
+		EXTI->PR |= EXTI_PR_PR2;
 	}
 }
 
@@ -268,3 +271,15 @@ void EXTI2_3_IRQHandler()
 #pragma GCC diagnostic pop
 
 // ----------------------------------------------------------------------------
+
+/*
+ * Max Period Min Frequency:
+ * The maximum period is equal to the maximum system clock ticks, or 2^32. (2^32)/48,000,000 (ignoring error). = ~89.48s
+ * The minimum frequency is equal to 1/maxperiod. 48,000,000/(2^32). = ~0.0112Hz
+ * Min Period Max Frequency:
+ * The minimum period is equal to the minimum system clock ticks, or 1. 1/48,000,000 (ignoring error). = ~2.083ns
+ * The maximum frequency is equal to 1/minperiod. 48,000,000/1. = 48MHz
+ * HOWEVER, we tried to set the period to 2ns, and the machine responded with an error saying minimum period is 12.50ns.
+ * ADDITIONALLY, we ran the program on the minimum period of 12.50ns, and the minimum period it could accurately measure was 0.0000013286s, or 1.3286 microseconds.
+ * This means that the maximum frequency is 1/0.0000013286, or 752671.98Hz
+ */
