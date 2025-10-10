@@ -276,6 +276,7 @@ void EXTI2_3_IRQHandler()
  * Max Period Min Frequency:
  * The maximum period is equal to the maximum system clock ticks, or 2^32. (2^32)/48,000,000 (ignoring error). = ~89.48s
  * The minimum frequency is equal to 1/maxperiod. 48,000,000/(2^32). = ~0.0112Hz
+ * In practice, we found the period was actually ~130s
  * Min Period Max Frequency:
  * The minimum period is equal to the minimum system clock ticks, or 1. 1/48,000,000 (ignoring error). = ~2.083ns
  * The maximum frequency is equal to 1/minperiod. 48,000,000/1. = 48MHz
