@@ -59,7 +59,6 @@ signals and their associated pin information are shown in the table below
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
-
 /* Definitions of registers and their bits are given in system/include/cmsis/stm32f051x8.h */
 
 /* Clock prescaler for TIM2 timer: no prescaling */
@@ -75,6 +74,9 @@ void myEXTI_Init(void);
 // Declare/initialize your global variables here...
 
 int firstEdge = 1;
+int display_555 = 1;
+unsigned int Freq = 0;  // Example: measured frequency value (global variable)
+unsigned int Res = 0;   // Example: measured resistance value (global variable)
 
 
 /*** Call this function to boost the STM32F0xx clock to 48 MHz ***/
@@ -132,7 +134,8 @@ int main(int argc, char* argv[]) {
 
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;  /* Enable SYSCFG clock */
 
-	myGPIOB_Init();		/* Initialize I/O port PB */
+	myGPIOA_Init();		/* Initialize I/O port PA (USER button interrupts) */
+	myGPIOB_Init();		/* Initialize I/O port PB (555 timer and Function Generator interrupts)*/
 	myTIM2_Init();		/* Initialize timer TIM2 */
 	myEXTI_Init();		/* Initialize EXTI */
 
@@ -175,19 +178,32 @@ int main(int argc, char* argv[]) {
 
 }
 
+void myGPIOA_Init() {
+	/* Enable clock for GPIOA peripheral */
+	// Relevant register: RCC->AHBENR
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+
+	/* Configure PA0 as input */
+	// Relevant register: GPIOA->MODER
+	GPIOA->MODER &= ~(GPIO_MODER_MODER0);
+
+	/*** Ensure no pull-up/pull-down for PA0 ***/
+	// Relevant register: GPIOA->PUPDR
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR0);
+}
 
 void myGPIOB_Init() {
 	/* Enable clock for GPIOB peripheral */
 	// Relevant register: RCC->AHBENR
 	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
 
-	/* Configure PB2 as input */
+	/* Configure PB2/3 as input */
 	// Relevant register: GPIOB->MODER
-	GPIOB->MODER &= ~(GPIO_MODER_MODER2);
+	GPIOB->MODER &= ~(GPIO_MODER_MODER2 | GPIO_MODER3);
 
-	/* Ensure no pull-up/pull-down for PB2 */
+	/* Ensure no pull-up/pull-down for PB2/3 */
 	// Relevant register: GPIOB->PUPDR
-	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR2);
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR2 | GPIO_PUPDR_PUPDR3);
 }
 
 
@@ -225,25 +241,27 @@ void myTIM2_Init() {
 
 
 void myEXTI_Init() {
+	/* Map EXTI0 line to PA0 */
+	SYSCFG->EXTICR[0] &= ~SYSCFG_EXTICR1_EXTI0;
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;
 	/* Map EXTI2 line to PB2 */
-	// Relevant register: SYSCFG->EXTICR[0]
-	SYSCFG->EXTICR[0] = SYSCFG_EXTICR1_EXTI2_PB;
+	SYSCFG->EXTICR[0] &= ~SYSCFG_EXTICR1_EXTI2;
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI2_PB;
+	/* Map EXTI3 line to PB3 */
+	SYSCFG->EXTICR[0] &= ~SYSCFG_EXTICR1_EXTI3;
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI3_PB;
 
-	/* EXTI2 line int
-	 * errupts: set rising-edge trigger */
-	// Relevant register: EXTI->RTSR
-	EXTI->RTSR = EXTI_RTSR_TR2;
+	/* EXTI0/2/3 line interrupts: set rising-edge trigger */
+	EXTI->RTSR = EXTI_RTSR_TR0 | EXTI_RTSR_TR2 | EXTI_RTSR_TR3;
 
-	/* Unmask interrupts from EXTI2 line */
-	// Relevant register: EXTI->IMR
-	EXTI->IMR = EXTI_IMR_MR2;
+	/* Unmask interrupts from EXTI0/2/3 line */
+	EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR2 | EXTI_IMR_MR3;
 
-	/* Assign EXTI2 interrupt priority = 0 in NVIC */
-	// Relevant register: NVIC->IP[2], or use NVIC_SetPriority
+	/*** Assign EXTI0 interrupt priority = 0 in NVIC, Enable EXTI0 interrupts in NVIC ***/
+	NVIC_SetPriority(EXTI0_1_IRQn, 0);
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
+	/* Assign EXTI2/3 interrupt priority = 0 in NVIC, Enable EXTI2/3 interrupts in NVIC */
 	NVIC_SetPriority(EXTI2_3_IRQn, 0);
-
-	/* Enable EXTI2 interrupts in NVIC */
-	// Relevant register: NVIC->ISER[0], or use NVIC_EnableIRQ
 	NVIC_EnableIRQ(EXTI2_3_IRQn);
 }
 
@@ -265,47 +283,81 @@ void TIM2_IRQHandler() {
 	}
 }
 
+void EXTI0_1_IRQHandler() {
+	/* Handle user button interrupts */
+	if ((EXTI->PR & EXTI_PR_PR0)) {
+		if ((GPIOA->IDR & GPIO_IDR_0)) { // USER button pressed (active high)
+			return;
+		} else { // USER button released
+			display_555 = !display_555;
+			// reset TIM2
+			TIM2->CR1 &= ~TIM_CR1_CEN;
+			TIM2->CNT = 0;
+			firstEdge = 1;
+
+		}
+		// Clear EXTI2 interrupt pending flag (EXTI->PR).
+		EXTI->PR |= EXTI_PR_PR0;
+	}
+}
 
 /* This handler is declared in system/src/cmsis/vectors_stm32f051x8.c */
 void EXTI2_3_IRQHandler() {
+	/*
+	Calculate frequency
+	*/
 	float period = 1;
 	float frequency = 0;
 
-	/* Check if EXTI2 interrupt pending flag is indeed set */
-	if ((EXTI->PR & EXTI_PR_PR2) != 0) {
-		//
-		// 1. If this is the first edge:
+	/* Measure Function Generator signal frequency */
+	if (!display_555 && (EXTI->PR & EXTI_PR_PR2)) {
 		if (firstEdge) {
-			//	- Clear count register (TIM2->CNT).
+			// Clear count register (TIM2->CNT) and start timer (TIM2->CR1).
 			TIM2->CNT = 0x00;
-			//	- Start timer (TIM2->CR1).
 			TIM2->CR1 |= TIM_CR1_CEN;
-
 			firstEdge = 0;
 		}
 		else {
-			//    Else (this is the second edge):
-			//	- Stop timer (TIM2->CR1).
+			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
 			TIM2->CR1 &= ~(TIM_CR1_CEN);
-			//	- Read out count register (TIM2->CNT).
 			period = TIM2->CNT;
 			period /= 48172691.6; // Average of 10 runs on 1 second
 
-			//	- Calculate signal period and frequency.
+			//	- Calculate signal period and frequency
 			frequency = 1.0/period;
-
-			//	- Print calculated values to the console.
-			trace_printf("period: %.10fs\n", period);
-			trace_printf("frequency: %fHz\n", frequency);
+			trace_printf("fg period: %.10fs\n", period);
+			trace_printf("fg frequency: %fHz\n", frequency);
 
 			firstEdge = 1;
+			Freq = frequency;
 		}
-
-		// 2. Clear EXTI2 interrupt pending flag (EXTI->PR).
-		// NOTE: A pending register (PR) bit is cleared
-		// by writing 1 to it.
-
+		// Clear EXTI2 interrupt pending flag (EXTI->PR)
 		EXTI->PR |= EXTI_PR_PR2;
+
+	/* Measure 555 timer signal frequency */
+	} else if (display_555 && (EXTI->PR & EXTI_PR_PR3)) {
+		if (firstEdge) {
+			// Clear count register (TIM2->CNT) and start timer (TIM2->CR1).
+			TIM2->CNT = 0x00;
+			TIM2->CR1 |= TIM_CR1_CEN;
+			firstEdge = 0;
+		}
+		else {
+			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
+			TIM2->CR1 &= ~(TIM_CR1_CEN);
+			period = TIM2->CNT;
+			period /= 48172691.6; // Average of 10 runs on 1 second
+
+			//	- Calculate signal period and frequency
+			frequency = 1.0/period;
+			trace_printf("555 period: %.10fs\n", period);
+			trace_printf("555 frequency: %fHz\n", frequency);
+
+			firstEdge = 1;
+			Freq = frequency;
+		}
+		// Clear EXTI3 interrupt pending flag (EXTI->PR)
+		EXTI->PR |= EXTI_PR_PR3;
 	}
 }
 
