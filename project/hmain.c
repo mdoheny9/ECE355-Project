@@ -161,6 +161,9 @@ int main(int argc, char* argv[]) {
         // Datasheet says:
         // VCHANNELx = (3.3 * VREFINT_CAL * ADC_DATAx) / (VREFINT_DATA * FULL_SCALE)
         // full scale = 2^bitresolution-1
+        // vrefint cal is at a specific memory location (not in datasheet)
+        // adc datax is input
+        // 
 
         /*
         You will use the digital value obtained from the ADC to control the frequency of the
