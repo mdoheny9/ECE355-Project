@@ -147,12 +147,16 @@ int main(int argc, char* argv[]) {
 
 
         // Chat says:
+
         // Vout = Vref * ADC/2^bitresolution-1
         // Vref = 3.3V
-        // Bits = The resolution of the ADC (currently asking Dr. Rakhmatov)
+        // ADC = input
+        // bitresolution = The resolution of the ADC (currently asking Dr. Rakhmatov)
 
         // Rbot = Rt * (Vcc/​Vout)​​ OR = Rt * (ADC/2^bitresolution-1)
         // Rt = 5000 ohms
+        // ADC = input
+        // bitresolution = The resolution of the ADC (currently asking Dr. Rakhmatov)
         
         // Datasheet says:
         // VCHANNELx = (3.3 * VREFINT_CAL * ADC_DATAx) / (VREFINT_DATA * FULL_SCALE)
