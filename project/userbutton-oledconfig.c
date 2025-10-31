@@ -17,8 +17,8 @@
 #define myTIM3_PERIOD ((uint32_t)(7200000-1)) // should be 100ms delay ***
 
 void myGPIOA_Init(void);
- void myGPIOB_Init(void);
-// void myTIM2_Init(void);
+void myGPIOB_Init(void);
+void myTIM2_Init(void);
 void myTIM3_Init(void);
 void myEXTI_Init(void);
 
@@ -264,7 +264,7 @@ void refresh_OLED( void )
 	// Buffer size = at most 16 characters per PAGE + terminating '\0'
 	unsigned char Buffer[17];
 
-	snprintf( Buffer, sizeof( Buffer ), "R: %5u Ohms", Res );
+	snprintf( Buffer, sizeof( Buffer ), "Resistance: %5u Ohms", Res );
 	/* Buffer now contains your character ASCII codes for LED Display
 		- select PAGE (LED Display line) and set starting SEG (column)
 		- for each c = ASCII code = Buffer[0], Buffer[1], ...,
@@ -279,8 +279,7 @@ void refresh_OLED( void )
 			oled_Write_Data(Characters[c][j]);
 		}
 	}
-
-	snprintf( Buffer, sizeof( Buffer ), "F: %5u Hz", Freq );
+	snprintf( Buffer, sizeof( Buffer ), "Frequency: %5u Hz", Freq );
 	/* Buffer now contains your character ASCII codes for LED Display
 		- select PAGE (LED Display line) and set starting SEG (column)
 		- for each c = ASCII code = Buffer[0], Buffer[1], ...,
@@ -413,7 +412,7 @@ void oled_config( void ) // important
     */
 	for (int i = 0; i < 7; i++) {
 		oled_Write_Cmd(0xB1 | i);  // select PAGE i
-		oled_Write_Cmd(0x00); // lower nibble = 0
+		oled_Write_Cmd(0x04); // lower nibble = 0
 		oled_Write_Cmd(0x10); // upper nibble = 0
 		for (int j = 0; j < 128; j++) {
 			oled_Write_Data( 0x00 );
@@ -461,31 +460,31 @@ void myGPIOB_Init() {
 	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
 }
 
-//void myTIM2_Init() {
-//	/* Enable clock for TIM2 peripheral */
-//	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-//
-//	/* Configure TIM2: buffer auto-reload, count up, stop on overflow,
-//	 * enable update events, interrupt on overflow only */
-//	TIM2->CR1 = ((uint16_t)0x008C);
-//
-//	/* Set clock prescaler value */
-//	TIM2->PSC = myTIM2_PRESCALER;
-//	/* Set auto-reloaded delay */
-//	TIM2->ARR = myTIM2_PERIOD;
-//
-//	/* Update timer registers */
-//	TIM2->EGR = ((uint16_t)0x0001);
-//
-//	/* Assign TIM2 interrupt priority = 0 in NVIC */
-//	NVIC_SetPriority(TIM2_IRQn, 0);
-//
-//	/* Enable TIM2 interrupts in NVIC */
-//	NVIC_EnableIRQ(TIM2_IRQn);
-//
-//	/* Enable update interrupt generation */
-//	TIM2->DIER |= TIM_DIER_UIE;
-//}
+void myTIM2_Init() {
+	/* Enable clock for TIM2 peripheral */
+	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+
+	/* Configure TIM2: buffer auto-reload, count up, stop on overflow,
+	 * enable update events, interrupt on overflow only */
+	TIM2->CR1 = ((uint16_t)0x008C);
+
+	/* Set clock prescaler value */
+	TIM2->PSC = myTIM2_PRESCALER;
+	/* Set auto-reloaded delay */
+	TIM2->ARR = myTIM2_PERIOD;
+
+	/* Update timer registers */
+	TIM2->EGR = ((uint16_t)0x0001);
+
+	/* Assign TIM2 interrupt priority = 0 in NVIC */
+	NVIC_SetPriority(TIM2_IRQn, 0);
+
+	/* Enable TIM2 interrupts in NVIC */
+	NVIC_EnableIRQ(TIM2_IRQn);
+
+	/* Enable update interrupt generation */
+	TIM2->DIER |= TIM_DIER_UIE;
+}
 
 void myTIM3_Init() {
 	/* Enable clock for TIM3 peripheral */
@@ -525,6 +524,24 @@ void myEXTI_Init() {
 	/*** Assign EXTI0 interrupt priority = 0 in NVIC, Enable EXTI0 interrupts in NVIC ***/
 	NVIC_SetPriority(EXTI0_1_IRQn, 0);
 	NVIC_EnableIRQ(EXTI0_1_IRQn);
+	/* Assign EXTI2/3 interrupt priority = 0 in NVIC, Enable EXTI2/3 interrupts in NVIC */
+	NVIC_SetPriority(EXTI2_3_IRQn, 64);
+	NVIC_EnableIRQ(EXTI2_3_IRQn);
+}
+
+/* This handler is declared in system/src/cmsis/vectors_stm32f051x8.c */
+void TIM2_IRQHandler() {
+	/* Check if update interrupt flag is indeed set */
+	if ((TIM2->SR & TIM_SR_UIF) != 0)
+	{
+		trace_printf("\n*** Overflow! ***\n");
+
+		/* Clear update interrupt flag */
+		TIM2->SR &= ~(TIM_SR_UIF);
+
+		/* Restart stopped timer */
+		TIM2->CR1 |= TIM_CR1_CEN;
+	}
 }
 
 void EXTI0_1_IRQHandler() {
@@ -542,64 +559,64 @@ void EXTI0_1_IRQHandler() {
 		EXTI->PR |= EXTI_PR_PR0;
 }
 
-///* This handler is declared in system/src/cmsis/vectors_stm32f051x8.c */
-//void EXTI2_3_IRQHandler() {
-//	/*
-//	Calculate frequency
-//	*/
-//	float period = 1;
-//	float frequency = 0;
-//
-//	/* Measure Function Generator signal frequency */
-//	if (!display_555 && (EXTI->PR & EXTI_PR_PR2)) {
-//		if (firstEdge) {
-//			// Clear count register (TIM2->CNT) and start timer (TIM2->CR1).
-//			TIM2->CNT = 0x00;
-//			TIM2->CR1 |= TIM_CR1_CEN;
-//			firstEdge = 0;
-//		}
-//		else {
-//			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
-//			TIM2->CR1 &= ~(TIM_CR1_CEN);
-//			period = TIM2->CNT;
-//			period /= 48172691.6; // Average of 10 runs on 1 second
-//
-//			//	- Calculate signal period and frequency
-//			frequency = 1.0/period;
-//			trace_printf("fg period: %.10fs\n", period);
-//			trace_printf("fg frequency: %fHz\n", frequency);
-//
-//			firstEdge = 1;
-//			Freq = frequency;
-//		}
-//		// Clear EXTI2 interrupt pending flag (EXTI->PR)
-//		EXTI->PR |= EXTI_PR_PR2;
-//
-//	/* Measure 555 timer signal frequency */
-//	} else if (display_555 && (EXTI->PR & EXTI_PR_PR3)) {
-//		if (firstEdge) {
-//			// Clear count register (TIM2->CNT) and start timer (TIM2->CR1).
-//			TIM2->CNT = 0x00;
-//			TIM2->CR1 |= TIM_CR1_CEN;
-//			firstEdge = 0;
-//		}
-//		else {
-//			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
-//			TIM2->CR1 &= ~(TIM_CR1_CEN);
-//			period = TIM2->CNT;
-//			period /= 48172691.6; // Average of 10 runs on 1 second
-//
-//			//	- Calculate signal period and frequency
-//			frequency = 1.0/period;
-//			trace_printf("555 period: %.10fs\n", period);
-//			trace_printf("555 frequency: %fHz\n", frequency);
-//
-//			firstEdge = 1;
-//			Freq = frequency;
-//		}
-//		// Clear EXTI3 interrupt pending flag (EXTI->PR)
-//		EXTI->PR |= EXTI_PR_PR3;
-//	}
-//}
+/* This handler is declared in system/src/cmsis/vectors_stm32f051x8.c */
+void EXTI2_3_IRQHandler() {
+	/*
+	Calculate frequency
+	*/
+	float period = 1;
+	float frequency = 0;
+
+	/* Measure Function Generator signal frequency */
+	if (!display_555 && (EXTI->PR & EXTI_PR_PR2)) {
+		if (firstEdge) {
+			// Clear count register (TIM2->CNT) and start timer (TIM2->CR1).
+			TIM2->CNT = 0x00;
+			TIM2->CR1 |= TIM_CR1_CEN;
+			firstEdge = 0;
+		}
+		else {
+			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
+			TIM2->CR1 &= ~(TIM_CR1_CEN);
+			period = TIM2->CNT;
+			period /= 48172691.6; // Average of 10 runs on 1 second
+
+			//	- Calculate signal period and frequency
+			frequency = 1.0/period;
+			trace_printf("fg period: %.10fs\n", period);
+			trace_printf("fg frequency: %fHz\n", frequency);
+
+			firstEdge = 1;
+			Freq = frequency;
+		}
+		// Clear EXTI2 interrupt pending flag (EXTI->PR)
+		EXTI->PR |= EXTI_PR_PR2;
+
+	/* Measure 555 timer signal frequency */
+	} else if (display_555 && (EXTI->PR & EXTI_PR_PR3)) {
+		if (firstEdge) {
+			// Clear count register (TIM2->CNT) and start timer (TIM2->CR1).
+			TIM2->CNT = 0x00;
+			TIM2->CR1 |= TIM_CR1_CEN;
+			firstEdge = 0;
+		}
+		else {
+			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
+			TIM2->CR1 &= ~(TIM_CR1_CEN);
+			period = TIM2->CNT;
+			period /= 48172691.6; // Average of 10 runs on 1 second
+
+			//	- Calculate signal period and frequency
+			frequency = 1.0/period;
+			trace_printf("555 period: %.10fs\n", period);
+			trace_printf("555 frequency: %fHz\n", frequency);
+
+			firstEdge = 1;
+			Freq = frequency;
+		}
+		// Clear EXTI3 interrupt pending flag (EXTI->PR)
+		EXTI->PR |= EXTI_PR_PR3;
+	}
+}
 
 #pragma GCC diagnostic pop
