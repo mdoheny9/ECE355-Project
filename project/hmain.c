@@ -76,6 +76,8 @@ void myTIM2_Init(void);
 void myTIM3_Init(void);
 void myEXTI_Init(void);
 
+void myADC_Init(void);
+
 void oled_Write(unsigned char);
 void oled_Write_Cmd(unsigned char);
 void oled_Write_Data(unsigned char);
@@ -608,6 +610,12 @@ void myEXTI_Init() {
 	/* Assign EXTI2/3 interrupt priority = 0 in NVIC, Enable EXTI2/3 interrupts in NVIC */
 	NVIC_SetPriority(EXTI2_3_IRQn, 0);
 	NVIC_EnableIRQ(EXTI2_3_IRQn);
+}
+
+
+// Initializes ACD or whatever
+void myACD_Init() {
+
 }
 
 
