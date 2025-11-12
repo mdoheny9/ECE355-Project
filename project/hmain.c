@@ -79,6 +79,7 @@ void myTIM3_Init(void);
 void myEXTI_Init(void);
 
 void myADC_Init(void);
+void myDAC_Init(void);
 
 void oled_Write(unsigned char);
 void oled_Write_Cmd(unsigned char);
@@ -583,6 +584,15 @@ void myADC_Init() {
 }
 
 
+void myDAC_Init() {
+	RCC->APB1ENR |= RCC_APB2ENR_DACEN; 			// Enable DAC Clock
+
+	DAC->CR |= DAC_CR_EN1; 						// Enable Channel 1
+	DAC->CR &= ~(DAC_CR_BOFF1);					// Enable Channel 1 Tri State Buffer
+	DAC->CR &= ~(DAC_CR_TEN1);					// Disable Channel 1 Trigger
+}
+
+
 void myGPIOC_Init() {
 	// Enable Clock
 	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
@@ -706,12 +716,13 @@ int main(int argc, char* argv[]) {
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;  /* Enable SYSCFG clock */
 
 	myGPIOA_Init();		/* Initialize I/O port PA (USER button interrupts) */
-	myGPIOB_Init();		/* Initialize I/O port PB (555 timer and Function Generator interrupts)*/
-	myGPIOC_Init();		/* Initialize I/O port PC (Blue and green LED's)*/
+	myGPIOB_Init();		/* Initialize I/O port PB (555 timer and Function Generator interrupts) */
+	myGPIOC_Init();		/* Initialize I/O port PC (Blue and green LED's) */
 	myTIM2_Init();		/* Initialize timer TIM2 */
 	myTIM3_Init();		/* Initialize timer TIM3 */
 	myEXTI_Init();		/* Initialize EXTI */
-	myADC_Init();		/* Initialize ADC*/
+	myADC_Init();		/* Initialize ADC */
+	myDAC_Init():		/* Initialize DAC */
 
 	oled_config();
 
@@ -729,16 +740,10 @@ int main(int argc, char* argv[]) {
 
 		if (ADC_ISR_EOC) { // if ADC conversion/sampling is completed
 			ADCInput = (uint16_t)ADC1->DR; // Read input
-			PotResistance = (ADCInput*5000.0)/3917.00;
+			PotResistance = (ADCInput*5000.0)/3917.00; // 3917 from max ADC value read
 			trace_printf("ADCInput: %u\nPotentiometer Resistance %u\n", ADCInput, (uint16_t)PotResistance);
+			DAC->DHR12R1 = ADCInput;
 		}
-
-		// Potentiometer Resistance = 5000*(ADC/4095) // 4095 is 2^12-1 (ADC bit resolution)
-
-        // Datasheet says:
-        // VCHANNELx = (3.3 * VREFINT_CAL * ADC_DATAx) / (VREFINT_DATA * FULL_SCALE)
-        // full scale = 2^bitresolution-1
-		// I think it's irrelevant for what we're doing
 
         /*
         You will use the digital value obtained from the ADC to control the frequency of the
