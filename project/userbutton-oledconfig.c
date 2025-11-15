@@ -271,11 +271,11 @@ void refresh_OLED( void )
 			send 8 bytes in Characters[c][0-7] to LED Display
 	*/
 	oled_Write_Cmd(0xB0);  // select PAGE0
-	oled_Write_Cmd(0x00); // lower nibble = 0
+	oled_Write_Cmd(0x02); // lower nibble = 0
 	oled_Write_Cmd(0x10); // upper nibble = 0
 	for (int i = 0; Buffer[i] != '\0'; i++) {
 		unsigned char c = Buffer[i];
-		for (int j = 0; j <= 7; j++) {
+		for (int j = 0; j < 8; j++) {
 			oled_Write_Data(Characters[c][j]);
 		}
 	}
@@ -286,11 +286,11 @@ void refresh_OLED( void )
 			send 8 bytes in Characters[c][0-7] to LED Display
 	*/
 	oled_Write_Cmd(0xB1);  // select PAGE1
-	oled_Write_Cmd(0x00); // lower nibble = 0
+	oled_Write_Cmd(0x04); // lower nibble = 0
 	oled_Write_Cmd(0x10); // upper nibble = 0
 	for (int i = 0; Buffer[i] != '\0'; i++) {
 		unsigned char c = Buffer[i];
-		for (int j = 0; j <= 7; j++) {
+		for (int j = 0; j < 8; j++) {
 			oled_Write_Data(Characters[c][j]);
 		}
 	}
@@ -302,7 +302,7 @@ void refresh_OLED( void )
 	TIM3->CR1 |= TIM_CR1_CEN; // start timer
 	while (!(TIM3->SR & TIM_SR_UIF)); // wait for timer overflow
 	TIM3->SR &= ~TIM_SR_UIF; // clear overflow flag
-//	trace_printf("refresh_OLED\n");
+	trace_printf("refresh_OLED\n");
 }
 
 void oled_Write_Cmd( unsigned char cmd )
@@ -387,13 +387,13 @@ void oled_config( void ) // important
     */
     GPIOB->BRR = (1 << 11);
 	/*** "wait for a few ms" ??? ***/
-    uint32_t start = TIM3->CNT; // track current count
-	while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
+//    uint32_t start = TIM3->CNT; // track current count
+//	while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
 
 	GPIOB->BSRR = (1 << 11);
 	/*** "wait for a few ms" ??? ***/
-	start = TIM3->CNT; // track current count
-	while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
+//	start = TIM3->CNT; // track current count
+//	while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
 
 
 //
@@ -410,9 +410,9 @@ void oled_config( void ) // important
            set starting SEG = 0
            call oled_Write_Data( 0x00 ) 128 times
     */
-	for (int i = 0; i < 7; i++) {
-		oled_Write_Cmd(0xB1 | i);  // select PAGE i
-		oled_Write_Cmd(0x04); // lower nibble = 0
+	for (int i = 0; i < 8; i++) {
+		oled_Write_Cmd(0xB0 | i);  // select PAGE i
+		oled_Write_Cmd(0x00); // lower nibble = 0
 		oled_Write_Cmd(0x10); // upper nibble = 0
 		for (int j = 0; j < 128; j++) {
 			oled_Write_Data( 0x00 );
@@ -453,11 +453,14 @@ void myGPIOB_Init() {
 	GPIOB->MODER &= ~(GPIO_MODER_MODER15_0);
 	GPIOB->MODER |= GPIO_MODER_MODER15_1;
     GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
+    GPIOB->AFR[1] &= ~(GPIO_AFRH_AFRH7);
+
 
 	/* Configure PB13 (Clock signal, SCLK = SPI SCK) as output (AF0) */
 	GPIOB->MODER &= ~(GPIO_MODER_MODER13_0);
 	GPIOB->MODER |= GPIO_MODER_MODER13_1;
 	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
+    GPIOB->AFR[1] &= ~(GPIO_AFRH_AFRH5);
 }
 
 void myTIM2_Init() {
