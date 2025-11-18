@@ -585,7 +585,7 @@ void myADC_Init() {
 
 
 void myDAC_Init() {
-	RCC->APB1ENR |= RCC_APB2ENR_DACEN; 			// Enable DAC Clock
+	RCC->APB1ENR |= RCC_APB1ENR_DACEN; 			// Enable DAC Clock
 
 	DAC->CR |= DAC_CR_EN1; 						// Enable Channel 1
 	DAC->CR &= ~(DAC_CR_BOFF1);					// Enable Channel 1 Tri State Buffer
@@ -722,7 +722,7 @@ int main(int argc, char* argv[]) {
 	myTIM3_Init();		/* Initialize timer TIM3 */
 	myEXTI_Init();		/* Initialize EXTI */
 	myADC_Init();		/* Initialize ADC */
-	myDAC_Init():		/* Initialize DAC */
+	myDAC_Init();		/* Initialize DAC */
 
 	oled_config();
 
