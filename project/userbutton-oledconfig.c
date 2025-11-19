@@ -260,17 +260,16 @@ int main(int argc, char* argv[]) {
 
 void refresh_OLED( void )
 { // SOURCE: page 30-31 of SSD1780 Data Sheet, Relevant TIM register bit definitions in stm32f051x8.h
+    // Buffer size = at most 16 characters per PAGE + terminating '\0'
+    unsigned char Buffer[17]; 
 
-	// Buffer size = at most 16 characters per PAGE + terminating '\0'
-	unsigned char Buffer[17];
-
-	snprintf( Buffer, sizeof( Buffer ), "Resistance: %5u Ohms", Res );
-	/* Buffer now contains your character ASCII codes for LED Display
-		- select PAGE (LED Display line) and set starting SEG (column)
-		- for each c = ASCII code = Buffer[0], Buffer[1], ...,
-			send 8 bytes in Characters[c][0-7] to LED Display
-	*/
-	oled_Write_Cmd(0xB0);  // select PAGE0
+    snprintf( Buffer, sizeof( Buffer ), "R: %5u Ohms", Res );
+    /* Buffer now contains your character ASCII codes for LED Display
+       - select PAGE (LED Display line) and set starting SEG (column)
+       - for each c = ASCII code = Buffer[0], Buffer[1], ...,
+           send 8 bytes in Characters[c][0-7] to LED Display
+    */
+    oled_Write_Cmd(0xB0);  // select PAGE0
 	oled_Write_Cmd(0x02); // lower nibble = 0
 	oled_Write_Cmd(0x10); // upper nibble = 0
 	for (int i = 0; Buffer[i] != '\0'; i++) {
@@ -279,13 +278,14 @@ void refresh_OLED( void )
 			oled_Write_Data(Characters[c][j]);
 		}
 	}
-	snprintf( Buffer, sizeof( Buffer ), "Frequency: %5u Hz", Freq );
-	/* Buffer now contains your character ASCII codes for LED Display
-		- select PAGE (LED Display line) and set starting SEG (column)
-		- for each c = ASCII code = Buffer[0], Buffer[1], ...,
-			send 8 bytes in Characters[c][0-7] to LED Display
-	*/
-	oled_Write_Cmd(0xB1);  // select PAGE1
+
+    snprintf( Buffer, sizeof( Buffer ), "F: %5u Hz", Freq );
+    /* Buffer now contains your character ASCII codes for LED Display
+       - select PAGE (LED Display line) and set starting SEG (column)
+       - for each c = ASCII code = Buffer[0], Buffer[1], ...,
+           send 8 bytes in Characters[c][0-7] to LED Display
+    */
+    oled_Write_Cmd(0xB1);  // select PAGE1
 	oled_Write_Cmd(0x04); // lower nibble = 0
 	oled_Write_Cmd(0x10); // upper nibble = 0
 	for (int i = 0; Buffer[i] != '\0'; i++) {
@@ -295,47 +295,40 @@ void refresh_OLED( void )
 		}
 	}
 
-	/* Wait for ~100 ms (for example) to get ~10 frames/sec refresh rate
-		- You should use TIM3 to implement this delay (e.g., via polling)
-	*/
-	TIM3->CNT = 0; //clear count
+	/* Wait for ~100 ms (for example) to get ~10 frames/sec refresh rate 
+       - You should use TIM3 to implement this delay (e.g., via polling)
+    */
+    TIM3->CNT = 0; // clear count
 	TIM3->CR1 |= TIM_CR1_CEN; // start timer
 	while (!(TIM3->SR & TIM_SR_UIF)); // wait for timer overflow
 	TIM3->SR &= ~TIM_SR_UIF; // clear overflow flag
-	trace_printf("refresh_OLED\n");
+	// trace_printf("refresh_OLED\n"); 
+
 }
 
 void oled_Write_Cmd( unsigned char cmd )
 {
-    // make PB8 = CS# = 1
-	GPIOB->BSRR = GPIO_BRR_BR_8; // (1 << 8)
-    // make PB9 = D/C# = 0
-	GPIOB->BRR = GPIO_BRR_BR_9; // (1 << 9)
-    // make PB8 = CS# = 0
-	GPIOB->BRR = GPIO_BRR_BR_8;
+    GPIOB->BSRR = GPIO_BRR_BR_8; // make PB8 = CS# = 1
+    GPIOB->BRR = GPIO_BRR_BR_9; // make PB9 = D/C# = 0
+    GPIOB->BRR = GPIO_BRR_BR_8; // make PB8 = CS# = 0
     oled_Write( cmd );
-    // make PB8 = CS# = 1
-	GPIOB->BSRR = GPIO_BRR_BR_8;
+    GPIOB->BSRR = GPIO_BRR_BR_8; // make PB8 = CS# = 1
 }
 
 void oled_Write_Data( unsigned char data )
 {
-    // make PB8 = CS# = 1
-	GPIOB->BSRR = GPIO_BRR_BR_8; // (1 << 8)
-    // make PB9 = D/C# = 1
-	GPIOB->BSRR = GPIO_BRR_BR_9; // (1 << 9)
-    // make PB8 = CS# = 0
-	GPIOB->BRR = GPIO_BRR_BR_8;
+    GPIOB->BSRR = GPIO_BRR_BR_8; // make PB8 = CS# = 1
+    GPIOB->BSRR = GPIO_BRR_BR_9; // make PB9 = D/C# = 1
+    GPIOB->BRR = GPIO_BRR_BR_8; // make PB8 = CS# = 0 
     oled_Write( data );
-    // make PB8 = CS# = 1
-	GPIOB->BSRR = GPIO_BRR_BR_8;
+    GPIOB->BSRR = GPIO_BRR_BR_8; // make PB8 = CS# = 1
 }
 
 void oled_Write( unsigned char Value )
 { // SOURCE: Interfacing Examples slideset
 
     /* Wait until SPI2 is ready for writing (TXE = 1 in SPI2_SR) */
-	while (!(SPI2->SR & SPI_SR_TXE));
+    while (!(SPI2->SR & SPI_SR_TXE));
 
     /* Send one 8-bit character:
        - This function also sets BIDIOE = 1 in SPI2_CR1
@@ -344,7 +337,7 @@ void oled_Write( unsigned char Value )
 
 
     /* Wait until transmission is complete (TXE = 1 in SPI2_SR) */
-	while (!(SPI2->SR & SPI_SR_TXE));
+    while (!(SPI2->SR & SPI_SR_TXE));
 
 }
 
@@ -352,11 +345,28 @@ void oled_config( void ) // important
 {
 
 // Don't forget to enable GPIOB clock in RCC
-// Don't forget to configure PB13/PB15 as AF0
-// Don't forget to enable SPI2 clock in RCC
+RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
 
-	/* Enable clock for SPI2 peripheral */
-	RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
+/* Configure PB8/9/11 (Control signals CS#, D/C#, and RES# respectively) as output, Ensure no pull-up/pull-down */
+GPIOB->MODER &= ~(GPIO_MODER_MODER8 | GPIO_MODER_MODER9 | GPIO_MODER_MODER11);
+GPIOB->MODER |= (GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER11_0);
+// GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR11);
+
+
+// Don't forget to configure PB13/PB15 as AF0
+/* Configure PB13 (Clock signal, SCLK = SPI SCK) as output (AF0) */
+GPIOB->MODER &= ~(GPIO_MODER_MODER13);
+GPIOB->MODER |= GPIO_MODER_MODER13_1;
+GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH5));
+// GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
+/* Configure PB15 (Serial data signal, SDIN = SPI MOSI) as output (AF0) */
+GPIOB->MODER &= ~(GPIO_MODER_MODER15);
+GPIOB->MODER |= GPIO_MODER_MODER15_1;
+GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH7));
+// GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
+
+// Don't forget to enable SPI2 clock in RCC
+RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
 
     SPI_Handle.Instance = SPI2;
 
@@ -382,18 +392,15 @@ void oled_config( void ) // important
 
 
     /* Reset LED Display (RES# = PB11):
-       - make pin PB11 = 0, wait for a few ms -> use TIM3
-       - make pin PB11 = 1, wait for a few ms -> use TIM3
+       - make pin PB11 = 0, wait for a few ms
+       - make pin PB11 = 1, wait for a few ms
     */
-    GPIOB->BRR = (1 << 11);
-	/*** "wait for a few ms" ??? ***/
-//    uint32_t start = TIM3->CNT; // track current count
-//	while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
-
-	GPIOB->BSRR = (1 << 11);
-	/*** "wait for a few ms" ??? ***/
-//	start = TIM3->CNT; // track current count
-//	while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
+    GPIOB->BRR = GPIO_PIN_11;
+    // uint32_t start = TIM3->CNT; // track current count
+	// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
+    GPIOB->BSRR = GPIO_PIN_11;
+    // uint32_t start = TIM3->CNT; // track current count
+	// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overfl
 
 
 //
@@ -405,21 +412,20 @@ void oled_config( void ) // important
     }
 
 
-    /* Fill LED Display data memory (GDDRAM) with zeros:
+    /* Fill LED Display data memory (GDDRAM) with zeros: 
        - for each PAGE = 0, 1, ..., 7
            set starting SEG = 0
            call oled_Write_Data( 0x00 ) 128 times
     */
-	for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++) {
 		oled_Write_Cmd(0xB0 | i);  // select PAGE i
 		oled_Write_Cmd(0x00); // lower nibble = 0
 		oled_Write_Cmd(0x10); // upper nibble = 0
-		for (int j = 0; j < 128; j++) {
+		for (int j = 0; j < 128; j++) { // clear page
 			oled_Write_Data( 0x00 );
 		}
 	}
 	trace_printf("OLED configured\n");
-
 
 
 }
@@ -453,14 +459,11 @@ void myGPIOB_Init() {
 	GPIOB->MODER &= ~(GPIO_MODER_MODER15_0);
 	GPIOB->MODER |= GPIO_MODER_MODER15_1;
     GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
-    GPIOB->AFR[1] &= ~(GPIO_AFRH_AFRH7);
-
 
 	/* Configure PB13 (Clock signal, SCLK = SPI SCK) as output (AF0) */
 	GPIOB->MODER &= ~(GPIO_MODER_MODER13_0);
 	GPIOB->MODER |= GPIO_MODER_MODER13_1;
 	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
-    GPIOB->AFR[1] &= ~(GPIO_AFRH_AFRH5);
 }
 
 void myTIM2_Init() {
