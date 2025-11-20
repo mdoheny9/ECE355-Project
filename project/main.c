@@ -253,10 +253,12 @@ unsigned char Characters[][8] = {
 
 // Declare/initialize your global variables here...
 
-int firstEdge = 1;
-int display_555 = 1;
-float frequency = 0;  // Example: measured frequency value (global variable)
-float PotResistance; 	// Potentiometer Resistance
+volatile int firstEdge = 1;
+volatile int display_555 = 1;
+double frequency = 0;  // Example: measured frequency value (global variable)
+unsigned int PotResistance; 	// Potentiometer Resistance
+unsigned int period = 0;
+int periodready = 0;
 
 
 /*** Call this function to boost the STM32F0xx clock to 48 MHz ***/
@@ -301,7 +303,7 @@ void refresh_OLED( void )
     // Buffer size = at most 16 characters per PAGE + terminating '\0'
     unsigned char Buffer[17];
 
-    snprintf( (char *)Buffer, sizeof( Buffer ), "R: %5u Ohms", (uint16_t)PotResistance );
+    snprintf( (char *)Buffer, sizeof( Buffer ), "R: %5u Ohms", PotResistance );
     /* Buffer now contains your character ASCII codes for LED Display
        - select PAGE (LED Display line) and set starting SEG (column)
        - for each c = ASCII code = Buffer[0], Buffer[1], ...,
@@ -317,7 +319,7 @@ void refresh_OLED( void )
 		}
 	}
 
-    snprintf( (char *)Buffer, sizeof( Buffer ), "F: %7u Hz", (uint16_t)frequency );
+    snprintf( (char *)Buffer, sizeof( Buffer ), "F: %5lu Hz", (uint32_t)frequency );
     /* Buffer now contains your character ASCII codes for LED Display
        - select PAGE (LED Display line) and set starting SEG (column)
        - for each c = ASCII code = Buffer[0], Buffer[1], ...,
@@ -438,7 +440,7 @@ void oled_config( void ) // important
 		// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
 	    GPIOB->BSRR = GPIO_PIN_11;
 	    // uint32_t start = TIM3->CNT; // track current count
-		// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overfl
+		// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
 
 
 	//
@@ -651,7 +653,7 @@ void EXTI0_1_IRQHandler() {
 			}
 			// reset TIM2
 			TIM2->CNT = 0x00;
-			TIM2->CR1 &= ~TIM_CR1_CEN;
+			TIM2->CR1 |= TIM_CR1_CEN;
 			firstEdge = 1;
 
 		}
@@ -662,11 +664,6 @@ void EXTI0_1_IRQHandler() {
 
 /* This handler is declared in system/src/cmsis/vectors_stm32f051x8.c */
 void EXTI2_3_IRQHandler() {
-	/*
-	Calculate frequency
-	*/
-	float period = 1;
-
 	/* Measure Function Generator signal frequency */
 	if (!display_555 && (EXTI->PR & EXTI_PR_PR2)) {
 		if (firstEdge) {
@@ -680,10 +677,7 @@ void EXTI2_3_IRQHandler() {
 			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
 			TIM2->CR1 &= ~(TIM_CR1_CEN);
 			period = TIM2->CNT;
-			period /= 48172691.6; // Average of 10 runs on 1 second
-
-			//	- Calculate signal period and frequency
-			frequency = 1.0/period;
+			periodready = 1;
 		}
 		// Clear EXTI2 interrupt pending flag (EXTI->PR)
 		EXTI->PR |= EXTI_PR_PR2;
@@ -701,10 +695,7 @@ void EXTI2_3_IRQHandler() {
 			//	- Stop timer (TIM2->CR1) and read out count register (TIM2->CNT).
 			TIM2->CR1 &= ~(TIM_CR1_CEN);
 			period = TIM2->CNT;
-			period /= 48172691.6; // Average of 10 runs on 1 second
-
-			//	- Calculate signal period and frequency
-			frequency = 1.0/period;
+			periodready = 1;
 		}
 		// Clear EXTI3 interrupt pending flag (EXTI->PR)
 		EXTI->PR |= EXTI_PR_PR3;
@@ -732,6 +723,8 @@ int main(int argc, char* argv[]) {
 
 	unsigned int ADCInput; 	// ADC Input
 
+	int count = 0;
+
 	while (1) {
         /*
 		The analog voltage signal coming from the potentiometer on the PBMCUSLK board
@@ -742,9 +735,15 @@ int main(int argc, char* argv[]) {
         */
 		if (ADC1->ISR & ADC_ISR_EOC) { // if ADC conversion/sampling is completed
 			ADCInput = (uint16_t)ADC1->DR; // Read input
-			//trace_printf("ADCInput: %u\nPotentiometer Resistance %u\n", ADCInput, (uint16_t)PotResistance);
-			DAC->DHR12R1 = ADCInput;
-			PotResistance = (ADCInput*5000.0)/4095.00; // 4095 from max ADC value read
+			if (DAC->DHR12R1 != ADCInput) {
+				DAC->DHR12R1 = (ADCInput*1.22100122 + 1500)*2300/4500;
+				PotResistance = (ADCInput*5000)/4095; // 4095 from max ADC value read
+			}
+		}
+
+		if (periodready) {
+			frequency = 48000000.0/(float)period;
+			periodready = 0;
 		}
 
         /*
@@ -753,7 +752,11 @@ int main(int argc, char* argv[]) {
         convert that digital value to an analog voltage signal driving the optocoupler.
         */
 
-		refresh_OLED();
+		if (count == 100) {
+			refresh_OLED();
+			count = 0;
+		}
+		count++;
 	}
 
 	return 0;
