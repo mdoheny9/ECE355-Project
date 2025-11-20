@@ -255,7 +255,7 @@ unsigned char Characters[][8] = {
 
 int firstEdge = 1;
 int display_555 = 1;
-unsigned int Freq = 0;  // Example: measured frequency value (global variable)
+float frequency = 0;  // Example: measured frequency value (global variable)
 float PotResistance; 	// Potentiometer Resistance
 
 
@@ -317,7 +317,7 @@ void refresh_OLED( void )
 		}
 	}
 
-    snprintf( Buffer, sizeof( Buffer ), "F: %5u Hz", Freq );
+    snprintf( Buffer, sizeof( Buffer ), "F: %7u Hz", (uint16_t)frequency );
     /* Buffer now contains your character ASCII codes for LED Display
        - select PAGE (LED Display line) and set starting SEG (column)
        - for each c = ASCII code = Buffer[0], Buffer[1], ...,
@@ -388,7 +388,7 @@ void oled_config( void ) // important
 	/* Configure PB8/9/11 (Control signals CS#, D/C#, and RES# respectively) as output, Ensure no pull-up/pull-down */
 	GPIOB->MODER &= ~(GPIO_MODER_MODER8 | GPIO_MODER_MODER9 | GPIO_MODER_MODER11);
 	GPIOB->MODER |= (GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER11_0);
-	// GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR11);
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR11);
 
 
 	// Don't forget to configure PB13/PB15 as AF0
@@ -396,12 +396,12 @@ void oled_config( void ) // important
 	GPIOB->MODER &= ~(GPIO_MODER_MODER13);
 	GPIOB->MODER |= GPIO_MODER_MODER13_1;
 	GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH5));
-	// GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
 	/* Configure PB15 (Serial data signal, SDIN = SPI MOSI) as output (AF0) */
 	GPIOB->MODER &= ~(GPIO_MODER_MODER15);
 	GPIOB->MODER |= GPIO_MODER_MODER15_1;
 	GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH7));
-	// GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
 
 	// Don't forget to enable SPI2 clock in RCC
 	RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
@@ -666,7 +666,6 @@ void EXTI2_3_IRQHandler() {
 	Calculate frequency
 	*/
 	float period = 1;
-	float frequency = 0;
 
 	/* Measure Function Generator signal frequency */
 	if (!display_555 && (EXTI->PR & EXTI_PR_PR2)) {
@@ -686,8 +685,6 @@ void EXTI2_3_IRQHandler() {
 
 			//	- Calculate signal period and frequency
 			frequency = 1.0/period;
-
-			Freq = frequency;
 		}
 		// Clear EXTI2 interrupt pending flag (EXTI->PR)
 		EXTI->PR |= EXTI_PR_PR2;
@@ -713,8 +710,6 @@ void EXTI2_3_IRQHandler() {
 			frequency = 1.0/period;
 			//trace_printf("555 period: %.10fs\n", period);
 			//trace_printf("555 frequency: %fHz\n", frequency);
-
-			Freq = frequency;
 		}
 		// Clear EXTI3 interrupt pending flag (EXTI->PR)
 		EXTI->PR |= EXTI_PR_PR3;
@@ -751,10 +746,11 @@ int main(int argc, char* argv[]) {
         the upper limits of the measurable voltage.
         */
 
-		if (ADC_ISR_EOC) { // if ADC conversion/sampling is completed
+		if (ADC1->ISR & ADC_ISR_EOC) { // if ADC conversion/sampling is completed
 			ADCInput = (uint16_t)ADC1->DR; // Read input
 			PotResistance = (ADCInput*5000.0)/3917.00; // 3917 from max ADC value read
 //			trace_printf("ADCInput: %u\nPotentiometer Resistance %u\n", ADCInput, (uint16_t)PotResistance);
+			print("%u %u\n", ADCInput, (uint16_t)frequency);
 			DAC->DHR12R1 = ADCInput;
 		}
 
