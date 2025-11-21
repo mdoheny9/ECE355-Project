@@ -310,7 +310,7 @@ void refresh_OLED( void )
            send 8 bytes in Characters[c][0-7] to LED Display
     */
     oled_Write_Cmd(0xB0);  // select PAGE0
-	oled_Write_Cmd(0x02); // lower nibble = 0
+	oled_Write_Cmd(0x04); // lower nibble = 0
 	oled_Write_Cmd(0x10); // upper nibble = 0
 	for (int i = 0; Buffer[i] != '\0'; i++) {
 		unsigned char c = Buffer[i];
@@ -319,7 +319,7 @@ void refresh_OLED( void )
 		}
 	}
 
-    snprintf( (char *)Buffer, sizeof( Buffer ), "F: %5lu Hz", (uint32_t)frequency );
+    snprintf( (char *)Buffer, sizeof( Buffer ), "F: %6lu Hz", (uint32_t)frequency );
     /* Buffer now contains your character ASCII codes for LED Display
        - select PAGE (LED Display line) and set starting SEG (column)
        - for each c = ASCII code = Buffer[0], Buffer[1], ...,
@@ -644,11 +644,14 @@ void EXTI0_1_IRQHandler() {
 			return;
 		} else { // USER button released
 			if (display_555) {
+				// Display Function generator frequency
 				trace_printf("User button toggled on\n");
+				EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR2; // disable 555 timer interrupts (mask exti3)
 				display_555 = 0;
 			}
 			else {
 				trace_printf("User button toggled off\n");
+				EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR3;
 				display_555 = 1;
 			}
 			// reset TIM2
@@ -723,8 +726,6 @@ int main(int argc, char* argv[]) {
 
 	unsigned int ADCInput; 	// ADC Input
 
-	int count = 0;
-
 	while (1) {
         /*
 		The analog voltage signal coming from the potentiometer on the PBMCUSLK board
@@ -736,7 +737,8 @@ int main(int argc, char* argv[]) {
 		if (ADC1->ISR & ADC_ISR_EOC) { // if ADC conversion/sampling is completed
 			ADCInput = (uint16_t)ADC1->DR; // Read input
 			if (DAC->DHR12R1 != ADCInput) {
-				DAC->DHR12R1 = (ADCInput*1.22100122 + 1500)*2300/4500;
+				//DAC->DHR12R1 = (ADCInput*1.22100122 + 1500)*2300/4500; // Output only varies from 1500 to 3800 ohms
+				DAC->DHR12R1 = ADCInput;
 				PotResistance = (ADCInput*5000)/4095; // 4095 from max ADC value read
 			}
 		}
@@ -752,11 +754,7 @@ int main(int argc, char* argv[]) {
         convert that digital value to an analog voltage signal driving the optocoupler.
         */
 
-		if (count == 100) {
-			refresh_OLED();
-			count = 0;
-		}
-		count++;
+		refresh_OLED();
 	}
 
 	return 0;
