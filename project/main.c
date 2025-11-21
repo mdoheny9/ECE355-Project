@@ -73,7 +73,6 @@ signals and their associated pin information are shown in the table below
 
 void myGPIOA_Init(void);
 void myGPIOB_Init(void);
-void myGPIOC_Init(void);
 void myTIM2_Init(void);
 void myTIM3_Init(void);
 void myEXTI_Init(void);
@@ -384,26 +383,7 @@ void oled_Write( unsigned char Value )
 void oled_config( void ) // important
 {
 
-	// Don't forget to enable GPIOB clock in RCC
-	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
 
-	/* Configure PB8/9/11 (Control signals CS#, D/C#, and RES# respectively) as output, Ensure no pull-up/pull-down */
-	GPIOB->MODER &= ~(GPIO_MODER_MODER8 | GPIO_MODER_MODER9 | GPIO_MODER_MODER11);
-	GPIOB->MODER |= (GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER11_0);
-	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR11);
-
-
-	// Don't forget to configure PB13/PB15 as AF0
-	/* Configure PB13 (Clock signal, SCLK = SPI SCK) as output (AF0) */
-	GPIOB->MODER &= ~(GPIO_MODER_MODER13);
-	GPIOB->MODER |= GPIO_MODER_MODER13_1;
-	GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH5));
-	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
-	/* Configure PB15 (Serial data signal, SDIN = SPI MOSI) as output (AF0) */
-	GPIOB->MODER &= ~(GPIO_MODER_MODER15);
-	GPIOB->MODER |= GPIO_MODER_MODER15_1;
-	GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH7));
-	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
 
 	// Don't forget to enable SPI2 clock in RCC
 	RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
@@ -436,11 +416,7 @@ void oled_config( void ) // important
 	       - make pin PB11 = 1, wait for a few ms
 	    */
 	    GPIOB->BRR = GPIO_PIN_11;
-	    // uint32_t start = TIM3->CNT; // track current count
-		// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
 	    GPIOB->BSRR = GPIO_PIN_11;
-	    // uint32_t start = TIM3->CNT; // track current count
-		// while ((TIM3->CNT - start) < myTIM3_PERIOD * 0.05); // wait for timer overflow
 
 
 	//
@@ -483,27 +459,28 @@ void myGPIOA_Init() {
 }
 
 void myGPIOB_Init() {
-//	/* Enable clock for GPIOB peripheral */
-//	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+	// Don't forget to enable GPIOB clock in RCC
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
 
 	/* Configure PB2/3 as input, Ensure no pull-up/pull-down */
 	GPIOB->MODER &= ~(GPIO_MODER_MODER2 | GPIO_MODER_MODER3);
 	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR2 | GPIO_PUPDR_PUPDR3);
 
-//	/* Configure PB8/9/11 (Control signals CS#, D/C#, and RES# respectively) as output, Ensure no pull-up/pull-down */
-//	GPIOB->MODER &= ~(GPIO_MODER_MODER8 | GPIO_MODER_MODER9 | GPIO_MODER_MODER11);
-//	GPIOB->MODER |= (GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER11_0);
-//	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR11);
+	/* Configure PB8/9/11 (Control signals CS#, D/C#, and RES# respectively) as output, Ensure no pull-up/pull-down */
+	GPIOB->MODER &= ~(GPIO_MODER_MODER8 | GPIO_MODER_MODER9 | GPIO_MODER_MODER11);
+	GPIOB->MODER |= (GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER11_0);
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR11);
 
-//	/* Configure PB15 (Serial data signal, SDIN = SPI MOSI) as output (AF0) */
-//	GPIOB->MODER &= ~(GPIO_MODER_MODER15_0);
-//	GPIOB->MODER |= GPIO_MODER_MODER15_1;
-//    GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
-//
-//	/* Configure PB13 (Clock signal, SCLK = SPI SCK) as output (AF0) */
-//	GPIOB->MODER &= ~(GPIO_MODER_MODER13_0);
-//	GPIOB->MODER |= GPIO_MODER_MODER13_1;
-//	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
+	/* Configure PB13 (Clock signal, SCLK = SPI SCK) as output (AF0) */
+	GPIOB->MODER &= ~(GPIO_MODER_MODER13);
+	GPIOB->MODER |= GPIO_MODER_MODER13_1;
+	GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH5));
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR13);
+	/* Configure PB15 (Serial data signal, SDIN = SPI MOSI) as output (AF0) */
+	GPIOB->MODER &= ~(GPIO_MODER_MODER15);
+	GPIOB->MODER |= GPIO_MODER_MODER15_1;
+	GPIOB->AFR[1] &= ~((GPIO_AFRH_AFRH7));
+	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR15);
 }
 
 
@@ -589,12 +566,12 @@ void myADC_Init() {
 	ADC1->CFGR1 |= ADC_CFGR1_CONT; 				// Continuous conversion mode
 	ADC1->CFGR1 |= ADC_CFGR1_OVRMOD;			// Overrun management mode
 
-	ADC1->SMPR |= ADC_SMPR_SMP; 				// Change sampling rate (TODO: RATE VALUE PROBABLY NOT CORRECT)
+	ADC1->SMPR |= ADC_SMPR_SMP; 				// Change sampling rate
 	ADC1->CHSELR |= ADC_CHSELR_CHSEL1; 			// Channel select 1
 
 	while(ADC1->CR != 0); 						// Can enable only when ADC_CR = 0.
 	ADC1->CR |= ADC_CR_ADEN; 					// Enable ADC
-	while(((ADC1->CR & ADC_CR_ADEN_Msk) == 0) && ((ADC1->CR & ADC_CR_ADDIS_Msk) == 1));
+	while(((ADC1->CR & ADC_CR_ADEN_Msk) == 0) && ((ADC1->CR & ADC_CR_ADDIS_Msk) == 1)); // Waits until ADC ready to be enabled
 	ADC1->CR |= ADC_CR_ADSTART; 				// Start ADC
 }
 
@@ -605,20 +582,6 @@ void myDAC_Init() {
 	DAC->CR |= DAC_CR_EN1; 						// Enable Channel 1
 	DAC->CR &= ~(DAC_CR_BOFF1);					// Enable Channel 1 Tri State Buffer
 	DAC->CR &= ~(DAC_CR_TEN1);					// Disable Channel 1 Trigger
-}
-
-
-void myGPIOC_Init() {
-	// Enable Clock
-	RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
-	// Configure PC8 and PC9 as outputs
-	GPIOC->MODER |= (GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0);
-	// Set Push-Pull mode for PC8 and PC9
-	GPIOC->OTYPER &= ~(GPIO_OTYPER_OT_8 | GPIO_OTYPER_OT_9);
-	// Set High-Speed mode for PC8 and PC9
-	GPIOC->OSPEEDR |= (GPIO_OSPEEDER_OSPEEDR8 | GPIO_OSPEEDER_OSPEEDR9);
-	// Set no Pull-up/Pull-down for PC8 and PC9
-	GPIOC->PUPDR &= ~(GPIO_PUPDR_PUPDR8 | GPIO_PUPDR_PUPDR9);
 }
 
 
@@ -646,12 +609,12 @@ void EXTI0_1_IRQHandler() {
 			if (display_555) {
 				// Display Function generator frequency
 				trace_printf("User button toggled on\n");
-				EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR2; // disable 555 timer interrupts (mask exti3)
+				EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR2; // disable 555 timer and re-enable fg interrupts
 				display_555 = 0;
 			}
 			else {
 				trace_printf("User button toggled off\n");
-				EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR3;
+				EXTI->IMR = EXTI_IMR_MR0 | EXTI_IMR_MR3; // disable fg and re-enable 555 timer interrupts
 				display_555 = 1;
 			}
 			// reset TIM2
@@ -715,7 +678,6 @@ int main(int argc, char* argv[]) {
 
 	myGPIOA_Init();		/* Initialize I/O port PA (USER button interrupts) */
 	myGPIOB_Init();		/* Initialize I/O port PB (555 timer and Function Generator interrupts) */
-	//myGPIOC_Init();		/* Initialize I/O port PC (Blue and green LED's) */
 	myTIM2_Init();		/* Initialize timer TIM2 */
 	myTIM3_Init();		/* Initialize timer TIM3 */
 	myEXTI_Init();		/* Initialize EXTI */
@@ -735,15 +697,15 @@ int main(int argc, char* argv[]) {
         the upper limits of the measurable voltage.
         */
 		if (ADC1->ISR & ADC_ISR_EOC) { // if ADC conversion/sampling is completed
-			ADCInput = (uint16_t)ADC1->DR; // Read input
+			ADCInput = (uint16_t)ADC1->DR; // Read ADC input
 			if (DAC->DHR12R1 != ADCInput) {
 				//DAC->DHR12R1 = (ADCInput*1.22100122 + 1500)*2300/4500; // Output only varies from 1500 to 3800 ohms
-				DAC->DHR12R1 = ADCInput;
+				DAC->DHR12R1 = ADCInput; // Write DAC output
 				PotResistance = (ADCInput*5000)/4095; // 4095 from max ADC value read
 			}
 		}
 
-		if (periodready) {
+		if (periodready) { // Period input received, ready to calculate frequency
 			frequency = 48000000.0/(float)period;
 			periodready = 0;
 		}
